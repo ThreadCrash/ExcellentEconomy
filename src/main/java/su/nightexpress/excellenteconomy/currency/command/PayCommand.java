@@ -2,6 +2,7 @@ package su.nightexpress.excellenteconomy.currency.command;
 
 import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
+import su.nightexpress.excellenteconomy.EconomyPlugin;
 import su.nightexpress.excellenteconomy.api.currency.ExcellentCurrency;
 import su.nightexpress.excellenteconomy.command.CommandArguments;
 import su.nightexpress.excellenteconomy.command.currency.CurrencyCommand;
@@ -18,10 +19,13 @@ import su.nightexpress.nightcore.core.config.CoreLang;
 
 public class PayCommand implements CurrencyCommand {
 
+    private final EconomyPlugin   plugin;
     private final CurrencyManager manager;
     private final UserManager     userManager;
 
-    public PayCommand(@NonNull CurrencyManager manager, @NonNull UserManager userManager) {
+    public PayCommand(@NonNull EconomyPlugin plugin, @NonNull CurrencyManager manager,
+                      @NonNull UserManager userManager) {
+        this.plugin = plugin;
         this.manager = manager;
         this.userManager = userManager;
     }
@@ -51,13 +55,15 @@ public class PayCommand implements CurrencyCommand {
         double amount = arguments.getDouble(CommandArguments.AMOUNT);
 
         this.userManager.loadByNameAsync(targetName).thenAccept(opt -> {
-            CoinsUser targetUser = opt.orElse(null);
-            if (targetUser == null) {
-                currency.sendPrefixed(CoreLang.ERROR_INVALID_PLAYER, context.getSender());
-                return;
-            }
+            this.plugin.runTask(() -> {
+                CoinsUser targetUser = opt.orElse(null);
+                if (targetUser == null) {
+                    currency.sendPrefixed(CoreLang.ERROR_INVALID_PLAYER, context.getSender());
+                    return;
+                }
 
-            this.manager.send(sender, targetUser, currency, amount);
+                this.manager.send(sender, targetUser, currency, amount);
+            });
         });
         return true;
     }

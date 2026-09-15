@@ -193,7 +193,7 @@ public class CurrencyManager extends AbstractManager<EconomyPlugin> {
         );
 
         this.commandManager.addCurrencyCommand("send",
-            () -> new PayCommand(this, this.userManager),
+            () -> new PayCommand(this.plugin, this, this.userManager),
             CommandDefinition.allEnabled("pay", "pay"),
             ExcellentCurrency::isTransferAllowed
         );
@@ -707,23 +707,25 @@ public class CurrencyManager extends AbstractManager<EconomyPlugin> {
         }
 
         CoinsUser fromUser = this.userManager.getOrFetch(sender);
-        if (amount > fromUser.getBalance(currency)) {
-            currency.sendPrefixed(Lang.CURRENCY_SEND_ERROR_NOT_ENOUGH, sender);
-            return false;
-        }
+        synchronized (fromUser) {
+            if (amount > fromUser.getBalance(currency)) {
+                currency.sendPrefixed(Lang.CURRENCY_SEND_ERROR_NOT_ENOUGH, sender);
+                return false;
+            }
 
-        CurrencySettings settings = targetUser.getSettings(currency);
-        if (!settings.isPaymentsEnabled()) {
-            currency.sendPrefixed(Lang.CURRENCY_SEND_ERROR_NO_PAYMENTS, sender, builder -> builder
-                .with(CommonPlaceholders.PLAYER_NAME, targetUser::getName)
-            );
-            return false;
-        }
+            CurrencySettings settings = targetUser.getSettings(currency);
+            if (!settings.isPaymentsEnabled()) {
+                currency.sendPrefixed(Lang.CURRENCY_SEND_ERROR_NO_PAYMENTS, sender, builder -> builder
+                    .with(CommonPlaceholders.PLAYER_NAME, targetUser::getName)
+                );
+                return false;
+            }
 
-        targetUser.addBalance(currency, amount);
-        targetUser.markDirty();
-        fromUser.removeBalance(currency, amount);
-        fromUser.markDirty();
+            targetUser.addBalance(currency, amount);
+            targetUser.markDirty();
+            fromUser.removeBalance(currency, amount);
+            fromUser.markDirty();
+        }
 
         currency.sendPrefixed(Lang.CURRENCY_SEND_DONE_SENDER, sender, builder -> builder
             .with(EconomyPlaceholders.GENERIC_AMOUNT, () -> currency.format(amount))
